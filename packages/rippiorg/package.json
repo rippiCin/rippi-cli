@@ -1,0 +1,31 @@
+{
+  "name": "rippiorg",
+  "version": "0.0.0",
+  "description": "Now I’m the model of a modern major general / The venerated Virginian veteran whose men are all / Lining up, to put me up on a pedestal / Writin’ letters to relatives / Embellishin’ my elegance and eloquence / But the elephant is in the room / The truth is in ya face when ya hear the British cannons go / BOOM",
+  "keywords": [],
+  "author": "Rippi <694404609@qq.com>",
+  "license": "ISC",
+  "main": "index.js",
+  "dependencies": {
+    "@rippiorg/config": "^0.0.0",
+    "@rippiorg/create": "^0.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "http://registry.npmjs.org"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rippiCin/rippi-cli.git"
+  },
+  "scripts": {
+    "test": "node ./__tests__/rippiorg.test.js"
+  },
+  "bin": {
+    "rippiorg": "index.js"
+  },
+  "bugs": {
+    "url": "https://github.com/rippiCin/rippi-cli/issues"
+  },
+  "homepage": "https://github.com/rippiCin/rippi-cli#readme"
+}
