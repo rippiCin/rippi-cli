@@ -2,6 +2,7 @@
 
 const yargs = require('yargs/yargs');
 const configCmd = require('@rippiorg/config/command');
+const createCmd = require('@rippiorg/create/command');
 const main = async () => {
   const cli = yargs();
   cli
@@ -10,6 +11,7 @@ const main = async () => {
     .strict()
     .recommendCommands()
     .command(configCmd)
+    .command(createCmd)
     .parse(process.argv.slice(2));
 };
 
