@@ -34,8 +34,17 @@ class Creator {
     log.info('rippiorg', '%s目录已经准备就绪', targetDir);
   }
 
+  async downloadTemplate() {
+    
+  }
+
   async create() {
     await this.prepareProjectDir();
+    // 1 选择仓库 react模板 vue模板
+    // 2 选择仓库分支 react -> js/ts vue -> 2+js/2+ts/3+js/3+ts
+    // 3 把标签代码下载到临时模板目录里
+    // 4 把临时模板目录里的目录拷贝到当前目录中，安装依赖启动
+    await this.downloadTemplate();
   }
 }
 
