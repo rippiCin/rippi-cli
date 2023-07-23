@@ -1,3 +1,16 @@
 #! /usr/bin/env node
 
-console.log('init');
+const yargs = require('yargs/yargs');
+const configCmd = require('@rippiorg/config/command');
+const main = async () => {
+  const cli = yargs();
+  cli
+    .usage('usage rippiorg <command> [options]')
+    .demandCommand(1, '至少需要一个命令')
+    .strict()
+    .recommendCommands()
+    .command(configCmd)
+    .parse(process.argv.slice(2));
+};
+
+main().catch(console.log);
