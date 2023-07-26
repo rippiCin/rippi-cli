@@ -20,6 +20,9 @@ module.exports = (cli) => {
   // 选完路由模式后的回调
   cli.onPromptComplete((answers, projectOptions) => {
     if (answers.features.includes('router')) {
+      projectOptions.plugins['cli-plugin-router'] = {
+        routerMode: answers.routerMode,
+      };
       projectOptions.routerMode = answers.routerMode;
     }
   })

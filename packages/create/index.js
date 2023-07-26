@@ -16,13 +16,9 @@ async function factory(argv) {
   const promptModules = getPromptModules();
   const creator = new Creator(name, targetDir, promptModules);
   await creator.create();
-  // const orderConfig = { cwd: targetDir, stdio: 'inherit' };
-  // 初始化git仓库
-  // await execa('git', ['init'], orderConfig);
-  // 安装依赖
-  // await execa('pnpm', ['install'], orderConfig);
+  const orderConfig = { cwd: targetDir, stdio: 'inherit' };
   // 启动项目
-  // await execa('pnpm', ['dev'], orderConfig);
+  await execa('pnpm', ['dev'], orderConfig);
 };
 
 module.exports = factory;

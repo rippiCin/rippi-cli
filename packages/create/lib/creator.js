@@ -3,9 +3,10 @@ const path = require('path');
 const chalk = require('chalk');
 const userhome = require('userhome');
 const { prompt } = require('inquirer');
-const { log, request, withLoading } = require('@rippiorg/utils');
+const { log, request, withLoading, loadModule } = require('@rippiorg/utils');
 const { TEMPLATES } = require('@rippiorg/settings');
 const downloadGitRepo = require('download-git-repo');
+const execa = require('execa');
 const util = require('util');
 const PromptModuleApi = require('./promptModuleApi');
 
@@ -31,6 +32,10 @@ class Creator {
     this.promptCompleteCbs = [];
     // 所选择的答案
     this.projectOptions = null;
+    // 启用的插件
+    this.plugins = [];
+    // package.json的内容
+    this.pkg = null;
     const promptModuleApi = new PromptModuleApi(this);
     promptModules.forEach((module) => module(promptModuleApi));
   }
@@ -98,16 +103,43 @@ class Creator {
     return projectOptions;
   }
 
+  async resolvedPlugins(rawPlugins) {
+    const plugins = [];
+    for (const id of Reflect.ownKeys(rawPlugins)) {
+      // 插件的generator文件是在项目的node_modules的，所以以项目的package.json为基准来require
+      const apply = loadModule(`${id}/generator`, this.projectDir);
+      // 插件的配置的选项{ routerMode: 'hash/history' }
+      const options = rawPlugins[id];
+      plugins.push({ id, apply, options });
+    }
+    return plugins;
+  }
+
   async create() {
     const projectOptions = (this.projectOptions = await this.promptAndResolve());
     console.log('projectOptions', projectOptions);
-    // await this.prepareProjectDir();
+    await this.prepareProjectDir();
     // 1 选择仓库 react模板 vue模板
     // 2 选择仓库分支 react -> js/ts vue -> 2+js/2+ts/3+js/3+ts
     // 3 把标签代码下载到临时模板目录里
     // 4 把临时模板目录里的目录拷贝到当前目录中，安装依赖启动
-    // await this.downloadTemplate();
-    // await fs.copy(this.templateDir, this.projectDir);
+    await this.downloadTemplate();
+    await fs.copy(this.templateDir, this.projectDir);
+    // 读取package.json的内容
+    const pkgPath = path.join(this.projectDir, 'package.json');
+    const pkg = (this.pkg = await fs.readJSON(pkgPath));
+    // 修改当前项目中的package.json的开发依赖，添加插件的依赖
+    const pluginDeps = Reflect.ownKeys(projectOptions.plugins);
+    pluginDeps.forEach((dep) => pkg.devDependencies[dep] = 'latest');
+    await fs.writeJSON(pkgPath, pkg, { spaces: 2 });
+    // 初始化git仓库
+    await execa('git', ['init'], orderConfig);
+    // 安装依赖
+    await execa('pnpm', ['install'], orderConfig);
+    // 找到插件
+    const resolvedPlugins = await this.resolvedPlugins(projectOptions.plugins);
+    // 执行插件
+    await this.applyPlugins(resolvedPlugins);
   }
 }
 
