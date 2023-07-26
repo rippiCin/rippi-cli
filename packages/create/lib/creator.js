@@ -7,13 +7,32 @@ const { log, request, withLoading } = require('@rippiorg/utils');
 const { TEMPLATES } = require('@rippiorg/settings');
 const downloadGitRepo = require('download-git-repo');
 const util = require('util');
+const PromptModuleApi = require('./promptModuleApi');
+
+const defaultFeaturePrompt = {
+  name: 'features',
+  type: 'checkbox',
+  message: '请选择项目的特性',
+  choices: [],
+};
 
 class Creator {
-  constructor (projectName, projectDir) {
+  constructor (projectName, projectDir, promptModules) {
     this.projectName = projectName;
     this.projectDir = projectDir;
     // 将downloadGitRepo转成promise
     this.downloadGitRepo = util.promisify(downloadGitRepo);
+    this.promptModules = promptModules;
+    // 特性的选择，之后他的choices会被一个一个插件填充
+    this.featurePrompts = defaultFeaturePrompt;
+    // 被注入的插件的选择框
+    this.injectPrompts = [];
+    // 被注入的选择完成的回调
+    this.promptCompleteCbs = [];
+    // 所选择的答案
+    this.projectOptions = null;
+    const promptModuleApi = new PromptModuleApi(this);
+    promptModules.forEach((module) => module(promptModuleApi));
   }
 
   async prepareProjectDir() {
@@ -71,14 +90,24 @@ class Creator {
     }
   }
 
+  async promptAndResolve() {
+    const prompts = [this.featurePrompts, ...this.injectPrompts];
+    const answers = await prompt(prompts);
+    const projectOptions = {};
+    this.promptCompleteCbs.forEach((cb) => cb(answers, projectOptions));
+    return projectOptions;
+  }
+
   async create() {
-    await this.prepareProjectDir();
+    const projectOptions = (this.projectOptions = await this.promptAndResolve());
+    console.log('projectOptions', projectOptions);
+    // await this.prepareProjectDir();
     // 1 选择仓库 react模板 vue模板
     // 2 选择仓库分支 react -> js/ts vue -> 2+js/2+ts/3+js/3+ts
     // 3 把标签代码下载到临时模板目录里
     // 4 把临时模板目录里的目录拷贝到当前目录中，安装依赖启动
-    await this.downloadTemplate();
-    await fs.copy(this.templateDir, this.projectDir);
+    // await this.downloadTemplate();
+    // await fs.copy(this.templateDir, this.projectDir);
   }
 }
 
