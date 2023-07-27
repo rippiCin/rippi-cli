@@ -3,12 +3,16 @@ const path = require('path');
 const chalk = require('chalk');
 const userhome = require('userhome');
 const { prompt } = require('inquirer');
-const { log, request, withLoading, loadModule } = require('@rippiorg/utils');
+const { log, request, withLoading, loadModule, writeFileTree } = require('@rippiorg/utils');
 const { TEMPLATES } = require('@rippiorg/settings');
 const downloadGitRepo = require('download-git-repo');
+const globSync = require('glob');
 const execa = require('execa');
 const util = require('util');
+const glob = util.promisify(globSync);
 const PromptModuleApi = require('./promptModuleApi');
+const GeneratorApi = require('./generatorApi');
+const { isBinaryFile } = require('isbinaryfile');
 
 const defaultFeaturePrompt = {
   name: 'features',
@@ -36,6 +40,10 @@ class Creator {
     this.plugins = [];
     // package.json的内容
     this.pkg = null;
+    // 文件处理的中间件数组
+    this.fileMiddleWares = [];
+    // key：文件路径 value：文件内容 插件在执行过程中生成的文件都会记录在这，最后统一写入硬盘
+    this.files = {};
     const promptModuleApi = new PromptModuleApi(this);
     promptModules.forEach((module) => module(promptModuleApi));
   }
@@ -65,6 +73,7 @@ class Creator {
     log.info('rippiorg', '%s目录已经准备就绪', targetDir);
   }
 
+  // 下载模板
   async downloadTemplate() {
     const repos = await withLoading('加载中...', () => request.get('/orgs/rippi-cli-template/repos'));
     // 选择仓库
@@ -95,6 +104,7 @@ class Creator {
     }
   }
 
+  // 特性选择
   async promptAndResolve() {
     const prompts = [this.featurePrompts, ...this.injectPrompts];
     const answers = await prompt(prompts);
@@ -103,6 +113,7 @@ class Creator {
     return projectOptions;
   }
 
+  // 解析和收集插件
   async resolvedPlugins(rawPlugins) {
     const plugins = [];
     for (const id of Reflect.ownKeys(rawPlugins)) {
@@ -113,6 +124,39 @@ class Creator {
       plugins.push({ id, apply, options });
     }
     return plugins;
+  }
+
+  // 应用插件
+  async applyPlugins(plugins) {
+    for (const plugin of plugins) {
+      const { id, apply, options } = plugin;
+      const generatorApi = new GeneratorApi(id, this, options);
+      await apply(generatorApi, options);
+    }
+  }
+
+  // 把当期项目中的文件全部写入到this.files中，等待被改写或者处理
+  async initFiles() {
+    const projectFiles = await glob('**/*', { cwd: this.projectDir, nodir: true });
+    for (let i = 0; i < projectFiles.length; i++) {
+      const projectFile = projectFiles[i];
+      const projectFilePath = path.join(this.projectDir, projectFile);
+      let content;
+      if (await isBinaryFile(projectFilePath)) {
+        content = await fs.readFile(projectFilePath);
+      } else {
+        content = await fs.readFile(projectFilePath, 'utf8');
+      }
+      this.files[projectFile] = content;
+    }
+  }
+
+  // 执行中间件
+  async renderFiles() {
+    const { files, projectOptions, fileMiddleWares } = this;
+    for (const middleWare of fileMiddleWares) {
+      await middleWare(files, projectOptions);
+    }
   }
 
   async create() {
@@ -133,6 +177,7 @@ class Creator {
     pluginDeps.forEach((dep) => pkg.devDependencies[dep] = 'latest');
     await fs.writeJSON(pkgPath, pkg, { spaces: 2 });
     // 初始化git仓库
+    const orderConfig = { cwd: this.projectDir, stdio: 'inherit' };
     await execa('git', ['init'], orderConfig);
     // 安装依赖
     await execa('pnpm', ['install'], orderConfig);
@@ -140,6 +185,16 @@ class Creator {
     const resolvedPlugins = await this.resolvedPlugins(projectOptions.plugins);
     // 执行插件
     await this.applyPlugins(resolvedPlugins);
+    // 初始化files对象
+    await this.initFiles();
+    // 开始调用中间件处理文件 this.files
+    await this.renderFiles();
+    // 删除插件依赖，因为插件依赖只有在生成项目的时候需要，项目本身是不需要的
+    pluginDeps.forEach((dep) => delete pkg.devDependencies[dep]);
+    this.files['package.json'] = JSON.stringify(pkg, null, 2);
+    // 把files写入项目目录
+    await writeFileTree(this.projectDir, this.files);
+    await execa('pnpm', ['install'], orderConfig);
   }
 }
 
