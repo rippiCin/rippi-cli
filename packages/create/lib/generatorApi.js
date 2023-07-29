@@ -26,7 +26,7 @@ class GeneratorApi {
         for (let i = 0; i < templateFiles; i++) {
           let templateFile = templateFiles[i];
           // 给creator的files赋值
-          files[templateFile] = await renderFile(path.resolve(templateDir, templateFile, projectOptions));
+          files[templateFile] = await renderFile(path.resolve(templateDir, templateFile), projectOptions);
         }
       })
     }

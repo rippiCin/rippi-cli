@@ -3,7 +3,7 @@ const path = require('path');
 function extractCallDir() {
   const obj = {};
   Error.captureStackTrace(obj);
-  const callSite = obj.stack.split('\n')[2];
+  const callSite = obj.stack.split('\n')[3];
   const namedStackRegExp = /\s\((.*):\d+:\d+\)$/;
   let matchResult = callSite.match(namedStackRegExp);
   const fileName = matchResult[1];
