@@ -42,6 +42,8 @@ class Creator {
     this.pkg = null;
     // 文件处理的中间件数组
     this.fileMiddleWares = [];
+    // 需要插入的import语句
+    this.imports = {};
     // key：文件路径 value：文件内容 插件在执行过程中生成的文件都会记录在这，最后统一写入硬盘
     this.files = {};
     const promptModuleApi = new PromptModuleApi(this);
@@ -157,6 +159,16 @@ class Creator {
     for (const middleWare of fileMiddleWares) {
       await middleWare(files, projectOptions);
     }
+    Reflect.ownKeys(files).forEach((file) => {
+      const imports = this.imports[file];
+      if (imports && imports.length > 0) {
+        files[file] = runTransformation(
+          { path: file, source: files[file] },
+          require('./code/injectImports'),
+          { imports },
+        );
+      }
+    });
   }
 
   async create() {
@@ -181,12 +193,12 @@ class Creator {
     await execa('git', ['init'], orderConfig);
     // 安装依赖
     await execa('pnpm', ['install'], orderConfig);
+    // 初始化files对象
+    await this.initFiles();
     // 找到插件
     const resolvedPlugins = await this.resolvedPlugins(projectOptions.plugins);
     // 执行插件
     await this.applyPlugins(resolvedPlugins);
-    // 初始化files对象
-    await this.initFiles();
     // 开始调用中间件处理文件 this.files
     await this.renderFiles();
     // 删除插件依赖，因为插件依赖只有在生成项目的时候需要，项目本身是不需要的

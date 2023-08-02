@@ -5,12 +5,16 @@ const { extractCallDir, mergeDeps, isObject, isString } = require('@rippiorg/uti
 const { render } = require('ejs');
 const fs = require('fs-extra');
 const { isBinaryFile } = require('isbinaryfile');
+const { runTransformation } = require('vue-codemod');
 
 class GeneratorApi {
   constructor(id, creator, options) {
     this.id = id;
     this.creator = creator;
     this.options = options;
+  }
+  get entryFile() {
+    return 'src/index.js';
   }
   async _injectFileMiddleWare(middleWare) {
     this.creator.fileMiddleWares.push(middleWare);
@@ -44,13 +48,20 @@ class GeneratorApi {
       }
     }
   }
-  // 插入import语句
-  injectImport() {
-
+  // 插入import
+  injectImport(file, newImport) {
+    const imports = (this.creator.imports[file] = this.creator.imports[file] || []);
+    imports.push(newImport);
   }
   // 转换脚本
-  transformScript() {
-
+  transformScript(file, codemod, options = {}) {
+    this._injectFileMiddleWare((files) => {
+      files[file] = runTransformation(
+        { path: file, source: files[file] },
+        codemod,
+        options,
+      );
+    })
   }
 }
 
