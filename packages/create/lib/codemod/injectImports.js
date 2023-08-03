@@ -1,6 +1,7 @@
 function injectImports(fileInfo, api, { imports }) {
   const jscodeshift = api.jscodeshift;
   const astRoot = jscodeshift(fileInfo.source);
+  const declarations = astRoot.find(jscodeshift.ImportDeclaration);
   // 存放这语法中所有的import语句
   const toImportAstNode = (imp) => jscodeshift(`${imp}\n`).nodes()[0].program.body[0];
   const importAstNodes = imports.map(toImportAstNode);

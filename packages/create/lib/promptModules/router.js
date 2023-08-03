@@ -32,7 +32,7 @@ module.exports = (cli) => {
       if (!projectOptions.plugins) {
         projectOptions.plugins = {};
       }
-      projectOptions.plugins['cli-plugin-router'] = {
+      projectOptions.plugins['@rippiorg/react-router-plugin'] = {
         routerMode: answers.routerMode,
       };
       projectOptions.routerMode = answers.routerMode;

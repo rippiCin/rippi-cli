@@ -1,6 +1,6 @@
 
 function getPromptModules() {
-  return ['router'].map((file) => require(`./promptModules/${file}`));
+  return ['router', 'eslint'].map((file) => require(`./promptModules/${file}`));
 };
 
 module.exports = getPromptModules;

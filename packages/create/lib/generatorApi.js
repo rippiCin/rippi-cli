@@ -14,7 +14,7 @@ class GeneratorApi {
     this.options = options;
   }
   get entryFile() {
-    return 'src/index.js';
+    return 'src/index.jsx';
   }
   async _injectFileMiddleWare(middleWare) {
     this.creator.fileMiddleWares.push(middleWare);
@@ -26,8 +26,10 @@ class GeneratorApi {
       templateDir = path.resolve(execDir, templateDir);
       this._injectFileMiddleWare(async (files, projectOptions) => {
         // 拿到该文件夹下的所有文件
-        const templateFiles = await glob('**/*', { cwd: templateDir, nodir: true });
-        for (let i = 0; i < templateFiles; i++) {
+        const templateInnerFiles = await glob('**/*', { cwd: templateDir, nodir: true });
+        const templateOutsideFiles = await glob('.*', { cwd: templateDir, nodir: true });
+        const templateFiles = [...templateOutsideFiles, ...templateInnerFiles]
+        for (let i = 0; i < templateFiles.length; i++) {
           let templateFile = templateFiles[i];
           // 给creator的files赋值
           files[templateFile] = await renderFile(path.resolve(templateDir, templateFile), projectOptions);
@@ -68,9 +70,9 @@ class GeneratorApi {
 async function renderFile(templatePath, projectOptions) {
   // 如果是二进制文件的话直接返回buffer
   if (await isBinaryFile(templatePath)) {
-    return await fs.rendFile(templatePath);
+    return await fs.rendFileSync(templatePath);
   }
-  const template = await fs.readFile(templatePath, 'utf8');
+  const template = await fs.readFileSync(templatePath, 'utf8');
   return render(template, projectOptions);
 }
 

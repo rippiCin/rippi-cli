@@ -13,6 +13,7 @@ const glob = util.promisify(globSync);
 const PromptModuleApi = require('./promptModuleApi');
 const GeneratorApi = require('./generatorApi');
 const { isBinaryFile } = require('isbinaryfile');
+const { runTransformation } = require('vue-codemod');
 
 const defaultFeaturePrompt = {
   name: 'features',
@@ -77,26 +78,26 @@ class Creator {
 
   // 下载模板
   async downloadTemplate() {
-    const repos = await withLoading('加载中...', () => request.get('/orgs/rippi-cli-template/repos'));
+    // const repos = await withLoading('加载中...', () => request.get('/orgs/rippi-cli-template/repos'));
     // 选择仓库
-    const { repo } = await prompt({
-      name: 'repo',
-      type: 'list',
-      message: '请选择框架',
-      choices: repos.map((item) => item.name),
-    });
+    // const { repo } = await prompt({
+    //   name: 'repo',
+    //   type: 'list',
+    //   message: '请选择框架',
+    //   choices: repos.map((item) => item.name),
+    // });
     // 选择分支
-    const branches = await withLoading('加载中...', () => request.get(`/repos/rippi-cli-template/${repo}/branches`));
-    const { branch } = await prompt({
-      name: 'branch',
-      type: 'list',
-      message: '请选择',
-      choices: branches.filter((item) => item.name !== 'main').map((item) => item.name),
-    });
+    // const branches = await withLoading('加载中...', () => request.get(`/repos/rippi-cli-template/react/branches`));
+    // const { branch } = await prompt({
+    //   name: 'branch',
+    //   type: 'list',
+    //   message: '请选择',
+    //   choices: branches.filter((item) => item.name !== 'main').map((item) => item.name),
+    // });
     // 拼接最终的模板仓库路径
-    const repository = `rippi-cli-template/${repo}/#${branch}`;
+    const repository = 'rippi-cli-template/react/#react+js';
     const downloadDir = userhome(TEMPLATES);
-    const templateDir = (this.templateDir = path.join(downloadDir, repo, branch));
+    const templateDir = (this.templateDir = path.join(downloadDir, 'react', 'react+js'));
     log.info('rippiorg', '准备下载模板到%s中', templateDir);
     // 判断下是否存在，如果存在说明不用再下载了
     const exists = fs.existsSync(templateDir);
@@ -164,7 +165,7 @@ class Creator {
       if (imports && imports.length > 0) {
         files[file] = runTransformation(
           { path: file, source: files[file] },
-          require('./code/injectImports'),
+          require('./codemod/injectImports'),
           { imports },
         );
       }
@@ -184,15 +185,14 @@ class Creator {
     // 读取package.json的内容
     const pkgPath = path.join(this.projectDir, 'package.json');
     const pkg = (this.pkg = await fs.readJSON(pkgPath));
-    // 修改当前项目中的package.json的开发依赖，添加插件的依赖
+    // 直接下载插件
     const pluginDeps = Reflect.ownKeys(projectOptions.plugins);
     pluginDeps.forEach((dep) => pkg.devDependencies[dep] = 'latest');
-    await fs.writeJSON(pkgPath, pkg, { spaces: 2 });
     // 初始化git仓库
     const orderConfig = { cwd: this.projectDir, stdio: 'inherit' };
     await execa('git', ['init'], orderConfig);
     // 安装依赖
-    await execa('pnpm', ['install'], orderConfig);
+    await execa('pnpm', ['install', ...pluginDeps, '-D'], orderConfig);
     // 初始化files对象
     await this.initFiles();
     // 找到插件
